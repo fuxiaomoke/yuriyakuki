@@ -1,0 +1,6 @@
+# 核心依赖
+PyQt6
+elevenlabs
+
+# 构建工具（仅开发需要）
+pyinstaller
