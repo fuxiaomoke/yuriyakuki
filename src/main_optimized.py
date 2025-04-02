@@ -16,12 +16,12 @@ def resource_path(relative_path):
     base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
     
     # 优先级1：检查打包后的assets目录
-    packaged_path = os.path.join(base_path, "assets", relative_path)
+    packaged_path = os.path.join(base_path, "..", "assets", relative_path)
     if os.path.exists(packaged_path):
         return packaged_path
         
     # 优先级2：检查开发环境的assets目录
-    dev_path = os.path.join(base_path, "..", "assets", relative_path)
+    dev_path = os.path.join(base_path, "..", "..", "assets", relative_path)
     if os.path.exists(dev_path):
         return dev_path
         

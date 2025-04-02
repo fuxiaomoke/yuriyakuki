@@ -11,7 +11,7 @@ if %errorlevel% neq 0 (
  
 REM 安装依赖（自动跳过已安装的包）
 echo Installing dependencies...
-pip install -r ..\requirements.txt --quiet
+pip install -r ..\..\requirements.txt --quiet
 
 REM 创建临时构建目录
 echo Creating build environment...
@@ -21,16 +21,15 @@ cd build_temp
 
 REM 复制必要文件（修正资源路径）
 echo Copying source files...
-copy ..\src\main_optimized.py .
-xcopy /Y ..\assets\*.* .
+copy ..\..\src\main_optimized.py .
+xcopy /Y ..\..\assets\*.* assets\
 
-REM 构建可执行文件（添加错误处理）
+REM 构建可执行文件
 echo Building executable with PyInstaller...
 pyinstaller --noconfirm ^
             --onefile ^
             --windowed ^
-            --add-data "background.png;assets" ^
-            --add-data "icon.ico;assets" ^
+            --add-data "assets;assets" ^  # 修改这里
             --icon="assets\icon.ico" ^
             --name="SubtitleConverter" ^
             --hidden-import="PIL" ^
@@ -47,13 +46,13 @@ if %errorlevel% neq 0 (
 
 REM 复制构建结果
 echo Copying output files...
-if not exist ..\dist mkdir ..\dist
-copy dist\SubtitleConverter.exe ..\dist\
-copy ..\assets\*.* ..\dist\assets\
+if not exist ..\..\dist mkdir ..\..\dist
+copy dist\SubtitleConverter.exe ..\..\dist\
+xcopy /Y /E assets ..\..\dist\assets\
 
 REM 清理临时文件
 echo Cleaning up...
-cd ..
+cd ..\..
 rmdir /s /q build_temp
 
 echo Build succeeded!
