@@ -35,7 +35,7 @@
 
 ### 3. 界面操作说明
 
-![](.\assets\界面截图.png)
+![](assets\界面截图.png)
 
 1. **API设置**
    - 输入您的ElevenLabs API Key
