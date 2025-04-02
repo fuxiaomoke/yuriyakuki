@@ -1,60 +1,100 @@
 @echo off
-echo Building Subtitle Converter Application...
+setlocal enabledelayedexpansion
 
-REM æ£€æŸ¥PythonçŽ¯å¢ƒ
+:: =============================================
+:: ÓïÒô×ª×ÖÄ»Ð¡°ïÊÖ - ÖÕ¼«¹¹½¨½Å±¾
+:: ÌØµã£º
+:: 1. ¼ì²éPython»·¾³ºÍÒÀÀµ
+:: 2. Éú³É´¿µ¥ÎÄ¼þEXE
+:: 3. ×Ô¶¯ÇåÀíËùÓÐÁÙÊ±ÎÄ¼þ
+:: 4. EXEÊä³öµ½ÏîÄ¿¸ùÄ¿Â¼
+:: =============================================
+
+:: ÅäÖÃÇø
+set PROJECT_ROOT=%~dp0..
+set EXE_NAME=ÓïÒô×ª×ÖÄ»Ð¡°ïÊÖ.exe
+set REQUIREMENTS=%PROJECT_ROOT%\requirements.txt
+
+:: Çå¿Õ¾ÉÎÄ¼þ
+echo [Ô¤´¦Àí] ÇåÀí¾É¹¹½¨...
+cd /d "%PROJECT_ROOT%"
+if exist "%EXE_NAME%" del "%EXE_NAME%"
+if exist "build" rmdir /s /q "build"
+if exist "dist" rmdir /s /q "dist"
+if exist "__pycache__" rmdir /s /q "__pycache__"
+
+:: ¼ì²éPython»·¾³
+echo [1/5] ¼ì²éPython»·¾³...
 where python >nul 2>&1
 if %errorlevel% neq 0 (
-    echo Error: Python not found in PATH
+    echo [´íÎó] Î´¼ì²âµ½Python£¬ÇëÖ´ÐÐ£º
+    echo 1. °²×°Python 3.8+
+    echo 2. ¹´Ñ¡"Add to PATH"
     pause
     exit /b 1
 )
- 
-REM å®‰è£…ä¾èµ–ï¼ˆè‡ªåŠ¨è·³è¿‡å·²å®‰è£…çš„åŒ…ï¼‰
-echo Installing dependencies...
-pip install -r ..\..\requirements.txt --quiet
 
-REM åˆ›å»ºä¸´æ—¶æž„å»ºç›®å½•
-echo Creating build environment...
-if exist build_temp rmdir /s /q build_temp
-mkdir build_temp
-cd build_temp
+:: °²×°ÒÀÀµ
+echo [2/5] °²×°ÒÀÀµ...
+if not exist "%REQUIREMENTS%" (
+    echo [¾¯¸æ] Î´ÕÒµ½requirements.txt£¬³¢ÊÔ°²×°»ù´¡ÒÀÀµ
+    pip install PyQt6 elevenlabs pyinstaller --quiet
+) else (
+    pip install -r "%REQUIREMENTS%" --quiet
+)
 
-REM å¤åˆ¶å¿…è¦æ–‡ä»¶ï¼ˆä¿®æ­£èµ„æºè·¯å¾„ï¼‰
-echo Copying source files...
-copy ..\..\src\main_optimized.py .
-xcopy /Y ..\..\assets\*.* assets\
+if %errorlevel% neq 0 (
+    echo [´íÎó] ÒÀÀµ°²×°Ê§°Ü£¬ÇëÊÖ¶¯Ö´ÐÐ£º
+    echo pip install -r "%REQUIREMENTS%"
+    pause
+    exit /b 1
+)
 
-REM æž„å»ºå¯æ‰§è¡Œæ–‡ä»¶
-echo Building executable with PyInstaller...
+:: ¹¹½¨EXE
+echo [3/5] ¹¹½¨µ¥ÎÄ¼þEXE...
+cd /d "%PROJECT_ROOT%\src"
 pyinstaller --noconfirm ^
             --onefile ^
             --windowed ^
-            --add-data "assets;assets" ^  # ä¿®æ”¹è¿™é‡Œ
-            --icon="assets\icon.ico" ^
-            --name="SubtitleConverter" ^
-            --hidden-import="PIL" ^
+            --add-data "../assets/icon.ico;." ^
+            --add-data "../assets/background.png;." ^
+            --icon="../assets/icon.ico" ^
+            --name "%EXE_NAME%" ^
+            --hidden-import PIL ^
             --clean ^
             main_optimized.py
 
 if %errorlevel% neq 0 (
-    echo Build failed!
-    cd ..
-    rmdir /s /q build_temp
+    echo [´íÎó] ¹¹½¨Ê§°Ü£¡
+    echo ³£¼ûÔ­Òò£º
+    echo 1. È±ÉÙ×ÊÔ´ÎÄ¼þ£¨¼ì²éassetsÄ¿Â¼£©
+    echo 2. É±¶¾Èí¼þÀ¹½Ø
     pause
     exit /b 1
 )
 
-REM å¤åˆ¶æž„å»ºç»“æžœ
-echo Copying output files...
-if not exist ..\..\dist mkdir ..\..\dist
-copy dist\SubtitleConverter.exe ..\..\dist\
-xcopy /Y /E assets ..\..\dist\assets\
+:: ÒÆ¶¯EXE
+echo [4/5] ÒÆ¶¯EXEµ½¸ùÄ¿Â¼...
+if exist "dist\%EXE_NAME%" (
+    move "dist\%EXE_NAME%" "%PROJECT_ROOT%\" >nul
+) else (
+    echo [´íÎó] EXEÎÄ¼þÎ´Éú³É
+    pause
+    exit /b 1
+)
 
-REM æ¸…ç†ä¸´æ—¶æ–‡ä»¶
-echo Cleaning up...
-cd ..\..
-rmdir /s /q build_temp
+:: ×îÖÕÇåÀí
+echo [5/5] ÇåÀíÁÙÊ±ÎÄ¼þ...
+cd /d "%PROJECT_ROOT%\src"
+rmdir /s /q "build" 2>nul
+rmdir /s /q "dist" 2>nul
+rmdir /s /q "__pycache__" 2>nul
+del /q "*.spec" 2>nul
 
-echo Build succeeded!
-echo Output: dist\SubtitleConverter.exe
-pause
+:: Íê³É±¨¸æ
+echo.
+echo ========================================
+echo ¹¹½¨³É¹¦£¡
+echo Éú³ÉÎÄ¼þ£º%PROJECT_ROOT%\%EXE_NAME%
+echo ========================================
+timeout /t 5
