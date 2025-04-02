@@ -15,11 +15,15 @@ python src/main_optimized.py
 ```
 
 ### 方式二：使用编译版
+
 ```bash
 # 运行构建脚本（Windows）
-build/build_advanced.bat
+packaging/build_advanced.bat
 # 生成的可执行文件将出现在项目根目录
 ```
+
+### 方式三：直接从[releases](https://github.com/fuxiaomoke/yuriyakuki/releases)下载打包好的exe程序解压运行
+
 
 ## 🎯 核心功能
 
@@ -32,7 +36,7 @@ build/build_advanced.bat
 
 ## 🖥️ 界面操作指南
 1. **API 设置**  
-   - 输入有效的 ElevenLabs API Key（格式：`eleven_...` 或 `sk_...`）
+   - 输入有效的 ElevenLabs API Key（格式： `sk_...`）
 
 2. **文件设置**  
    📂 支持格式：`.mp3`/`.wav`/`.ogg`/`.m4a`/`.flac`
