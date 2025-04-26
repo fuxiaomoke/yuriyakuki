@@ -112,7 +112,7 @@ class CustomLabel_title(QLabel):
 class SubtitleConverter(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("语音转字幕小帮手 v1.2 (Qt版)")
+        self.setWindowTitle("语音转字幕小帮手 v0.2.0 (Qt版)")
         self.resize(1024, 768)
         
         # 设置窗口属性实现无边框但保留背景
