@@ -500,7 +500,7 @@ class SubtitleConverter(QMainWindow):
         timestamp_label.setFont(api_label_font)
         
         self.timestamp_combo = QComboBox()
-        self.timestamp_combo.addItems(["word", "character", "none"])
+        self.timestamp_combo.addItems(["word", "character"])
         self.timestamp_combo.setStyleSheet(self.lang_combo.styleSheet())
         
         row2.addWidget(self.tag_events)
@@ -730,7 +730,7 @@ class SubtitleConverter(QMainWindow):
                     # 准备基本参数
                     model_id = self.model_combo.currentText()
                     diarize = True
-                    timestamps_granularity = self.timestamp_combo.currentText() if self.timestamp_combo.currentText() != "none" else None
+                    timestamps_granularity = self.timestamp_combo.currentText()
                     num_speakers = self.speaker_spin.value()
                     tag_audio_events = self.tag_events.isChecked()
                     
