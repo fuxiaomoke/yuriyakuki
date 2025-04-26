@@ -6,10 +6,10 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QH
                             QComboBox, QSpinBox, QCheckBox, QProgressBar, QGroupBox)
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject
 from PyQt6.QtGui import QColor, QPalette, QPixmap, QPainter, QBrush, QIcon, QWindow, QFont
-from elevenlabs import ElevenLabs
+from elevenlabs.client import ElevenLabs
+# from elevenlabs import ElevenLabs
 import threading
 from datetime import datetime
-import tempfile
 
 def resource_path(relative_path):
     """ 获取资源的绝对路径（适配开发/打包模式） """
@@ -38,6 +38,7 @@ class TransparentWidget(QWidget):
     def __init__(self, parent=None, bg_color=QColor(255, 255, 255, 3)):
         super().__init__(parent)
         self.bg_color = bg_color
+        self.clicked_on_combo = False
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
     def paintEvent(self, event):
@@ -110,15 +111,13 @@ class CustomLabel_title(QLabel):
 class SubtitleConverter(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("语音转字幕小帮手 v1.0 (Qt版)")
+        self.setWindowTitle("语音转字幕小帮手 v1.1 (Qt版)")
         self.resize(1024, 768)
         
         # 设置窗口属性实现无边框但保留背景
         self.setWindowFlags(self.windowFlags() | Qt.WindowType.FramelessWindowHint)
         
         # 设置图标 - 为任务栏图标做特别处理
-        # icon_path = resource_path("icon.ico")
-        # self.app_icon = QIcon(icon_path)
         icon_path = resource_path("icon.ico")
         if not os.path.exists(icon_path):
             QMessageBox.warning(None, "警告", f"图标文件缺失: {icon_path}")
@@ -190,8 +189,6 @@ class SubtitleConverter(QMainWindow):
             gradient.setColorAt(1, QColor(20, 20, 40))
             painter.fillRect(self.rect(), gradient)
             painter.end()
-        # if os.path.exists(bg_path):
-        #     self.background = QPixmap(bg_path).scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatioByExpanding)
         super().resizeEvent(event)
 
     def init_ui(self):
@@ -403,15 +400,15 @@ class SubtitleConverter(QMainWindow):
         row2 = QHBoxLayout()
         
         # 复选框 - 保持原样，因为不需要文本描边效果
-        self.tag_events = QCheckBox("生成非语音SE")
-        self.tag_events.setChecked(True)
-        self.keep_non_speech = QCheckBox("导出非语音SE")
-        self.keep_non_speech.setChecked(False)
+        self.tag_events = QCheckBox("生成非语音SE(如笑声、亲吻声、吞咽声)")
+        self.tag_events.setChecked(False)
+        # self.keep_non_speech = QCheckBox("导出非语音SE")
+        # self.keep_non_speech.setChecked(False)
         
         # 设置复选框样式
         checkbox_style = """
             QCheckBox {
-                color: #E6C9C9;
+                color: #FFD942;
                 font: bold 15px "楷体";
                 spacing: 5px;
             }
@@ -439,8 +436,8 @@ class SubtitleConverter(QMainWindow):
                 border: 1px solid #87CEEB;
             }
         """
-        self.tag_events.setStyleSheet(checkbox_style_2)
-        self.keep_non_speech.setStyleSheet(checkbox_style)
+        self.tag_events.setStyleSheet(checkbox_style)
+        # self.keep_non_speech.setStyleSheet(checkbox_style)
         
         # 时间戳设置 - 使用自定义标签
         timestamp_label = CustomLabel("时间戳粒度:")
@@ -451,30 +448,47 @@ class SubtitleConverter(QMainWindow):
         self.timestamp_combo.setStyleSheet(self.lang_combo.styleSheet())
         
         row2.addWidget(self.tag_events)
-        row2.addWidget(self.keep_non_speech)
+        # row2.addWidget(self.keep_non_speech)
         row2.addSpacing(20)
         row2.addWidget(timestamp_label)
         row2.addWidget(self.timestamp_combo)
         row2.addStretch()
         settings_layout.addLayout(row2)
         
-        # 第三行设置
+        # 第三行设置 - 将质量选择更改为模型选择
         row3 = QHBoxLayout()
         
-        # 质量设置 - 使用自定义标签
-        quality_label = CustomLabel("质量:")
-        quality_label.setFont(api_label_font)
+        # 模型选择 - 使用自定义标签
+        model_label = CustomLabel("模型:")
+        model_label.setFont(api_label_font)
         
-        self.quality_combo = QComboBox()
-        self.quality_combo.addItems(["standard", "enhanced"])
-        self.quality_combo.setStyleSheet(self.lang_combo.styleSheet())
+        self.model_combo = QComboBox()
+        self.model_combo.addItems(["scribe_v1", "scribe_v1_experimental"])
+        self.model_combo.setStyleSheet(self.lang_combo.styleSheet())
         
-        row3.addWidget(quality_label)
-        row3.addWidget(self.quality_combo)
+        # 格式选择 - 添加导出格式选项
+        format_label = CustomLabel("导出格式:")
+        format_label.setFont(api_label_font)
+        
+        self.format_combo = QComboBox()
+        self.format_combo.addItems(["srt", "txt"])
+        self.format_combo.setStyleSheet(self.lang_combo.styleSheet())
+        
+        row3.addWidget(model_label)
+        row3.addWidget(self.model_combo)
+        row3.addSpacing(20)
+        row3.addWidget(format_label)
+        row3.addWidget(self.format_combo)
         row3.addStretch()
         settings_layout.addLayout(row3)
         
         content_layout.addWidget(settings_group)
+
+        # 给所有的 QComboBox 添加事件过滤器
+        self.lang_combo.installEventFilter(self)
+        self.timestamp_combo.installEventFilter(self)
+        self.model_combo.installEventFilter(self)
+        self.format_combo.installEventFilter(self)
         
         # 进度条
         self.progress = QProgressBar()
@@ -526,7 +540,14 @@ class SubtitleConverter(QMainWindow):
         content_layout.addLayout(btn_layout)
         
         main_layout.addWidget(content)
-    
+
+    def eventFilter(self, obj, event):
+        # 当用户点击QComboBox时设置标记，但不阻止事件
+        if isinstance(obj, QComboBox) and event.type() == event.Type.MouseButtonPress:
+            self.clicked_on_combo = True
+            return False  # 返回False让事件继续传递给ComboBox处理
+        return super().eventFilter(obj, event)
+
     def browse_file(self):
         """浏览文件"""
         file_dialog = QFileDialog(self)
@@ -552,8 +573,8 @@ class SubtitleConverter(QMainWindow):
             QMessageBox.information(self, "完成", message)
         else:
             QMessageBox.critical(self, "错误", message)
-        self.progress.setValue(0)
-    
+        self.progress.setValue(0)    
+
     def start_conversion(self):
         """开始转换"""
         def conversion_thread():
@@ -576,26 +597,53 @@ class SubtitleConverter(QMainWindow):
                 client = ElevenLabs(api_key=api_key)
                 self.worker_signals.progress.emit(30)
                 
+                # 获取选择的导出格式
+                format_type = self.format_combo.currentText()
+                
+                # 创建额外格式选项 - 按照官方示例的方式
+                format_options = {
+                    "format": format_type,
+                    "include_speakers": self.speaker_spin.value() > 1,
+                    "include_timestamps": True,
+                    "max_segment_duration_s": 10,
+                }
+                
                 # 处理文件
                 with open(audio_path, "rb") as audio_file:
-                    if self.lang_combo.currentText() == "auto":
+                    # 准备基本参数
+                    model_id = self.model_combo.currentText()
+                    diarize = True
+                    timestamps_granularity = self.timestamp_combo.currentText() if self.timestamp_combo.currentText() != "none" else None
+                    num_speakers = self.speaker_spin.value()
+                    tag_audio_events = self.tag_events.isChecked()
+                    
+                    # 严格按照官方示例格式处理additional_formats参数
+                    additional_formats_json = json.dumps([format_options])
+                    
+                    # 根据语言设置
+                    if self.lang_combo.currentText() != "auto":
+                        language_code = self.lang_combo.currentText()
+                        # 执行转换，包含语言参数
                         result = client.speech_to_text.convert(
-                            model_id="scribe_v1",
+                            model_id=model_id,
                             file=audio_file,
-                            num_speakers=self.speaker_spin.value(),
-                            tag_audio_events=self.tag_events.isChecked(),
-                            timestamps_granularity=self.timestamp_combo.currentText(),
-                            diarize=self.speaker_spin.value() > 1
+                            num_speakers=num_speakers,
+                            tag_audio_events=tag_audio_events,
+                            timestamps_granularity=timestamps_granularity,
+                            diarize=diarize,
+                            language_code=language_code,
+                            additional_formats=additional_formats_json
                         )
                     else:
+                        # 执行转换，不包含语言参数
                         result = client.speech_to_text.convert(
-                            model_id="scribe_v1",
+                            model_id=model_id,
                             file=audio_file,
-                            language_code=self.lang_combo.currentText(),
-                            num_speakers=self.speaker_spin.value(),
-                            tag_audio_events=self.tag_events.isChecked(),
-                            timestamps_granularity=self.timestamp_combo.currentText(),
-                            diarize=self.speaker_spin.value() > 1
+                            num_speakers=num_speakers,
+                            tag_audio_events=tag_audio_events,
+                            timestamps_granularity=timestamps_granularity,
+                            diarize=diarize,
+                            additional_formats=additional_formats_json
                         )
                 
                 self.worker_signals.progress.emit(70)
@@ -604,8 +652,8 @@ class SubtitleConverter(QMainWindow):
                 output_dir = os.path.dirname(audio_path)
                 base_name = os.path.splitext(os.path.basename(audio_path))[0]
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                
-                # 保存JSON
+
+                # 保存JSON (必须保存)
                 json_path = os.path.join(output_dir, f"{base_name}_{timestamp}.json")
                 try:
                     if hasattr(result, 'model_dump'):
@@ -621,118 +669,78 @@ class SubtitleConverter(QMainWindow):
                     if os.path.exists(json_path):
                         os.remove(json_path)
                     raise Exception(f"JSON保存失败: {str(json_error)}")
-                
-                # 根据时间戳粒度决定输出格式
-                if self.timestamp_combo.currentText() == "none":
-                    # 输出TXT（纯文本）
+
+                # 根据用户选择保存相应格式的文件
+                additional_files = []
+                selected_format = self.format_combo.currentText()
+
+                if selected_format == "srt":
+                    # 处理SRT格式
+                    if result_data.get("additional_formats"):
+                        for format_item in result_data.get("additional_formats", []):
+                            format_type = format_item.get("requested_format") or format_item.get("file_extension")
+                            format_content = format_item.get("content")
+                            
+                            if format_type == "srt" and format_content:
+                                srt_path = os.path.join(output_dir, f"{base_name}_{timestamp}.srt")
+                                try:
+                                    with open(srt_path, "w", encoding="utf-8") as f:
+                                        f.write(format_content)
+                                    additional_files.append(f"SRT: {srt_path}")
+                                except Exception as e:
+                                    additional_files.append(f"SRT保存失败: {str(e)}")
+                elif selected_format == "txt":
+                    # 保存TXT格式
                     txt_path = os.path.join(output_dir, f"{base_name}_{timestamp}.txt")
-                    with open(txt_path, "w", encoding="utf-8") as f:
-                        f.write(result_data.get("text", ""))
-                    message = f"转换成功！\nJSON: {json_path}\nTXT: {txt_path}"
-                else:
-                    # 输出SRT（带时间戳）
-                    srt_path = os.path.join(output_dir, f"{base_name}_{timestamp}.srt")
-                    with open(srt_path, "w", encoding="utf-8") as f:
-                        f.write(self.generate_srt(result_data))
-                    message = f"转换成功！\nJSON: {json_path}\nSRT: {srt_path}"
+                    try:
+                        with open(txt_path, "w", encoding="utf-8") as f:
+                            f.write(result_data.get("text", ""))
+                        additional_files.append(f"TXT: {txt_path}")
+                    except Exception as e:
+                        additional_files.append(f"TXT保存失败: {str(e)}")
                 
+                # 更新进度条到100%
                 self.worker_signals.progress.emit(100)
+
+                # 构建完成消息
+                message = f"转换成功！\nJSON: {json_path}"
+                if additional_files:
+                    for additional_file in additional_files:
+                        message += f"\n{additional_file}"
+
+                # 重要：发送完成信号
                 self.worker_signals.finished.emit(message, True)
             
             except Exception as e:
                 error_msg = f"转换失败:\n{str(e)}\n\n常见原因：\n" \
-                          "1. API Key无效或过期\n" \
-                          "2. 不支持的音频格式\n" \
-                          "3. 网络连接问题\n" \
-                          "4. 服务器端错误\n" \
-                          "5. 文件权限问题"
+                        "1. API Key无效或过期\n" \
+                        "2. 不支持的音频格式\n" \
+                        "3. 网络连接问题\n" \
+                        "4. 服务器端错误\n" \
+                        "5. 文件权限问题"
                 self.worker_signals.finished.emit(error_msg, False)
         
         threading.Thread(target=conversion_thread, daemon=True).start()
-    
+
     def validate_api_key(self, key):
-        """验证API Key"""
-        return key.startswith(('sk_', 'eleven_')) and 30 <= len(key) <= 100
+            """验证API Key"""
+            return key.startswith(('sk_', 'eleven_')) and 30 <= len(key) <= 100
     
-    def generate_srt(self, data):
-        """生成SRT字幕文件内容"""
-        if "words" not in data or not data["words"]:
-            return ""
-        
-        words = data["words"]
-        srt_content = []
-        subtitle_index = 1
-        current_text = []
-        start_time = None
-        end_time = None
-        
-        # 每3秒或标点符号处分割
-        max_duration = 3.0  # 最大字幕持续时间（秒）
-        punctuation = ["。", ".", "!", "?", "！", "？", "；", ";", "，", ","]
-        
-        for word in words:
-            # 如果是非语音事件且不保留，则跳过
-            if word.get("type") == "audio_event" and not self.keep_non_speech.isChecked():
-                continue
-                
-            # 获取开始和结束时间
-            word_start = float(word.get("start", 0))
-            word_end = float(word.get("end", 0))
-            word_text = word.get("text", "")
-            
-            # 设置当前字幕的起始时间
-            if start_time is None:
-                start_time = word_start
-                
-            # 更新结束时间
-            end_time = word_end
-            
-            # 添加到当前文本
-            current_text.append(word_text)
-            
-            # 判断是否需要结束当前字幕
-            should_end = False
-            
-            # 检查持续时间
-            if end_time - start_time >= max_duration:
-                should_end = True
-                
-            # 检查标点符号
-            if any(p in word_text for p in punctuation):
-                should_end = True
-                
-            # 处理字幕分段
-            if should_end or word == words[-1]:  # 最后一个词也要结束
-                # 格式化时间
-                start_formatted = self.format_time(start_time)
-                end_formatted = self.format_time(end_time)
-                
-                # 组合文本
-                subtitle_text = "".join(current_text).strip()
-                
-                # 添加字幕
-                if subtitle_text:  # 确保字幕有内容
-                    srt_entry = f"{subtitle_index}\n{start_formatted} --> {end_formatted}\n{subtitle_text}\n\n"
-                    srt_content.append(srt_entry)
-                    subtitle_index += 1
-                
-                # 重置当前字幕
-                current_text = []
-                start_time = None
-        
-        return "".join(srt_content)
-    
-    def format_time(self, seconds):
-        """将秒转换为SRT格式的时间 (00:00:00,000)"""
-        hours = int(seconds // 3600)
-        minutes = int((seconds % 3600) // 60)
-        seconds = seconds % 60
-        milliseconds = int((seconds - int(seconds)) * 1000)
-        return f"{hours:02d}:{minutes:02d}:{int(seconds):02d},{milliseconds:03d}"
-    
+    # def mousePressEvent(self, event):
+    #     """实现窗口拖动"""
+    #     if event.button() == Qt.MouseButton.LeftButton:
+    #         self.drag_pos = event.globalPosition().toPoint()
+    #         event.accept()
+
     def mousePressEvent(self, event):
-        """实现窗口拖动"""
+        """实现窗口拖动，但排除交互控件"""
         if event.button() == Qt.MouseButton.LeftButton:
+            # 如果刚才点击了ComboBox，则不启动窗口拖拽
+            if hasattr(self, 'clicked_on_combo') and self.clicked_on_combo:
+                self.clicked_on_combo = False
+                return  # 直接返回，不启动拖拽
+                
+            # 否则正常进行窗口拖拽
             self.drag_pos = event.globalPosition().toPoint()
             event.accept()
     
@@ -743,7 +751,6 @@ class SubtitleConverter(QMainWindow):
             self.drag_pos = event.globalPosition().toPoint()
             event.accept()
 
-
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     
@@ -751,7 +758,6 @@ if __name__ == "__main__":
     app_icon = QIcon(resource_path("icon.ico"))
     app.setWindowIcon(app_icon)
     
-    # 设置应用ID以确保任务栏图标正确显示（Windows特有）
     if os.name == 'nt':  # 检查是否为Windows系统
         import ctypes
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("SubtitleConverter")
