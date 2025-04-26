@@ -75,6 +75,6 @@ packaging/build_advanced.bat
 - 网络连接异常
 
 ## 🚀 高级技巧
-- 大多数情况下，建议选择"auto"+"scribe_v1"即可
+- 大多数情况下，选择"auto"+"scribe_v1"即可
 - 多人对话场景请准确设置说话人数
 - 需要保留背景音效时勾选"生成非语音SE"
