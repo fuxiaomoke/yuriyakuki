@@ -4,6 +4,7 @@ import json
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                             QLabel, QLineEdit, QPushButton, QFileDialog, QMessageBox,
                             QComboBox, QSpinBox, QCheckBox, QProgressBar, QGroupBox)
+from PyQt6.QtWidgets import QGraphicsDropShadowEffect
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject
 from PyQt6.QtGui import QColor, QPalette, QPixmap, QPainter, QBrush, QIcon, QWindow, QFont
 from elevenlabs.client import ElevenLabs
@@ -408,7 +409,7 @@ class SubtitleConverter(QMainWindow):
         # 设置复选框样式
         checkbox_style = """
             QCheckBox {
-                color: #FFD942;
+                color: #00BFFF;
                 font: bold 15px "楷体";
                 spacing: 5px;
             }
@@ -438,6 +439,13 @@ class SubtitleConverter(QMainWindow):
         """
         self.tag_events.setStyleSheet(checkbox_style)
         # self.keep_non_speech.setStyleSheet(checkbox_style)
+
+        # 创建轮廓效果
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(0)  # 设置为0使轮廓清晰
+        shadow.setColor(QColor("#333333"))
+        shadow.setOffset(1, 1)   # 调整偏移量增加轮廓效果
+        self.tag_events.setGraphicsEffect(shadow)
         
         # 时间戳设置 - 使用自定义标签
         timestamp_label = CustomLabel("时间戳粒度:")
@@ -735,20 +743,36 @@ class SubtitleConverter(QMainWindow):
     def mousePressEvent(self, event):
         """实现窗口拖动，但排除交互控件"""
         if event.button() == Qt.MouseButton.LeftButton:
-            # 如果刚才点击了ComboBox，则不启动窗口拖拽
-            if hasattr(self, 'clicked_on_combo') and self.clicked_on_combo:
-                self.clicked_on_combo = False
-                return  # 直接返回，不启动拖拽
+            # 检查鼠标所在位置是否是下拉框
+            cursor_pos = event.globalPosition().toPoint()
+            widget = QApplication.widgetAt(cursor_pos)
+            
+            # 如果点击在ComboBox或其子控件上，跳过拖动
+            is_combo = False
+            current = widget
+            while current is not None:
+                if isinstance(current, QComboBox) or current.objectName().startswith('qt_scrollarea'):
+                    is_combo = True
+                    break
+                current = current.parent()
                 
-            # 否则正常进行窗口拖拽
-            self.drag_pos = event.globalPosition().toPoint()
+            if not is_combo:
+                self.drag_pos = cursor_pos
+                self.is_dragging = True
+                
             event.accept()
     
     def mouseMoveEvent(self, event):
         """实现窗口拖动"""
-        if hasattr(self, 'drag_pos'):
+        if hasattr(self, 'is_dragging') and self.is_dragging:
             self.move(self.pos() + event.globalPosition().toPoint() - self.drag_pos)
             self.drag_pos = event.globalPosition().toPoint()
+            event.accept()
+
+    def mouseReleaseEvent(self, event):
+        """释放鼠标按钮时停止拖动"""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.is_dragging = False
             event.accept()
 
 if __name__ == "__main__":
