@@ -112,7 +112,7 @@ class CustomLabel_title(QLabel):
 class SubtitleConverter(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("语音转字幕小帮手 v1.1 (Qt版)")
+        self.setWindowTitle("语音转字幕小帮手 v1.2 (Qt版)")
         self.resize(1024, 768)
         
         # 设置窗口属性实现无边框但保留背景
@@ -150,12 +150,23 @@ class SubtitleConverter(QMainWindow):
         self.worker_signals.finished.connect(self.show_result)
         self.worker_signals.progress.connect(self.update_progress)
         
+        # 初始化配置文件路径
+        self.config_dir = os.path.join(os.path.expanduser("~"), ".subtitle_converter")
+        self.config_file = os.path.join(self.config_dir, "config.json")
+        
+        # 确保配置目录存在
+        if not os.path.exists(self.config_dir):
+            os.makedirs(self.config_dir)
+        
         # 初始化UI
         self.init_ui()
         self.center_window()
         
         # 在窗口显示后应用任务栏图标
         QTimer.singleShot(100, self.apply_taskbar_icon)
+        
+        # 加载保存的API Key
+        self.load_api_key()
         
     def apply_taskbar_icon(self):
         """确保任务栏图标正确设置"""
@@ -294,7 +305,10 @@ class SubtitleConverter(QMainWindow):
                 color: #B34A4A;
             }
         """)
-        api_layout = QHBoxLayout(api_group)
+        api_layout = QVBoxLayout(api_group)
+        
+        # API Key 输入行
+        api_input_layout = QHBoxLayout()
         
         # 使用自定义标签
         api_label = CustomLabel("ElevenLabs API Key:")
@@ -314,8 +328,42 @@ class SubtitleConverter(QMainWindow):
             }
         """)
         
-        api_layout.addWidget(api_label)
-        api_layout.addWidget(self.api_entry)
+        api_input_layout.addWidget(api_label)
+        api_input_layout.addWidget(self.api_entry)
+        api_layout.addLayout(api_input_layout)
+        
+        # 记住API Key复选框
+        remember_layout = QHBoxLayout()
+        
+        self.remember_api = QCheckBox("记住API Key")
+        self.remember_api.setChecked(True)  # 默认选中
+        self.remember_api.setStyleSheet("""
+            QCheckBox {
+                color: #00BFFF;
+                font: bold 15px "楷体";
+                spacing: 5px;
+            }
+            QCheckBox::indicator {
+                width: 20px;
+                height: 20px;
+            }
+            QCheckBox::indicator:checked {
+                background-color: rgba(110, 44, 44, 180);
+                border: 1px solid #87CEEB;
+            }
+        """)
+
+        # 创建轮廓效果
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(0)  # 设置为0使轮廓清晰
+        shadow.setColor(QColor("#333333"))
+        shadow.setOffset(1, 1)   # 调整偏移量增加轮廓效果
+        self.remember_api.setGraphicsEffect(shadow)
+        
+        remember_layout.addWidget(self.remember_api)
+        remember_layout.addStretch()
+        api_layout.addLayout(remember_layout)
+        
         content_layout.addWidget(api_group)
         
         # 文件选择区域
@@ -549,6 +597,63 @@ class SubtitleConverter(QMainWindow):
         
         main_layout.addWidget(content)
 
+    def load_api_key(self):
+        """加载保存的API Key"""
+        try:
+            if os.path.exists(self.config_file):
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    if 'api_key' in config:
+                        self.api_entry.setText(config['api_key'])
+                        self.remember_api.setChecked(True)
+        except Exception as e:
+            # 如果配置文件损坏或格式不正确，忽略错误
+            print(f"加载API Key时出错: {str(e)}")
+    
+    def save_api_key(self, api_key):
+        """保存API Key到配置文件"""
+        try:
+            # 确保配置目录存在
+            if not os.path.exists(self.config_dir):
+                os.makedirs(self.config_dir)
+                
+            # 创建或更新配置文件
+            config = {}
+            if os.path.exists(self.config_file):
+                try:
+                    with open(self.config_file, 'r', encoding='utf-8') as f:
+                        config = json.load(f)
+                except:
+                    # 如果文件损坏，使用空配置
+                    config = {}
+            
+            # 更新API Key
+            config['api_key'] = api_key
+            
+            # 写入配置文件
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(config, f, ensure_ascii=False, indent=2)
+                
+            return True
+        except Exception as e:
+            print(f"保存API Key时出错: {str(e)}")
+            return False
+
+    def clear_api_key(self):
+        """从配置文件中清除API Key"""
+        try:
+            if os.path.exists(self.config_file):
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                
+                if 'api_key' in config:
+                    del config['api_key']
+                
+                with open(self.config_file, 'w', encoding='utf-8') as f:
+                    json.dump(config, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"清除API Key时出错: {str(e)}")
+
     def eventFilter(self, obj, event):
         # 当用户点击QComboBox时设置标记，但不阻止事件
         if isinstance(obj, QComboBox) and event.type() == event.Type.MouseButtonPress:
@@ -570,6 +675,10 @@ class SubtitleConverter(QMainWindow):
         self.api_entry.clear()
         self.file_entry.clear()
         self.progress.setValue(0)
+        
+        # 当用户点击清除按钮时，同时清除保存的API Key（如果不需要记住API Key）
+        if not self.remember_api.isChecked():
+            self.clear_api_key()
     
     def update_progress(self, value):
         """更新进度条"""
@@ -581,7 +690,7 @@ class SubtitleConverter(QMainWindow):
             QMessageBox.information(self, "完成", message)
         else:
             QMessageBox.critical(self, "错误", message)
-        self.progress.setValue(0)    
+        self.progress.setValue(0)   
 
     def start_conversion(self):
         """开始转换"""
@@ -715,6 +824,11 @@ class SubtitleConverter(QMainWindow):
                 if additional_files:
                     for additional_file in additional_files:
                         message += f"\n{additional_file}"
+                
+                # 添加以下代码保存API Key
+                if self.remember_api.isChecked():
+                    api_key = self.api_entry.text().strip()
+                    self.save_api_key(api_key)
 
                 # 重要：发送完成信号
                 self.worker_signals.finished.emit(message, True)
