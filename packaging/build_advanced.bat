@@ -38,7 +38,7 @@ if %errorlevel% neq 0 (
 echo [2/5] 安装依赖...
 if not exist "%REQUIREMENTS%" (
     echo [警告] 未找到requirements.txt，尝试安装基础依赖
-    pip install PyQt6 elevenlabs pyinstaller --quiet
+    pip install PyQt6 elevenlabs==1.57.0 pyinstaller --quiet
 ) else (
     pip install -r "%REQUIREMENTS%" --quiet
 )
