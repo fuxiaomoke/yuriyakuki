@@ -47,7 +47,7 @@ packaging/build_advanced.bat
    ```
    ▸ 语言：默认auto（自动检测）或手动指定  
    ▸ 说话人数：1-32人  
-   ▸ 时间戳粒度：word/character/none  
+   ▸ 时间戳粒度：word/character 
    ▸ 生成非语音SE：默认不生成，需要自行勾选
    ▸ 模型设定：scribe_v1/scribe_v1_experimental
    ```
@@ -67,7 +67,7 @@ packaging/build_advanced.bat
 
 ## ❓ 常见问题
 ### Q1: 如何获取API Key？
-访问 [ElevenLabs官网](https://elevenlabs.io/) 注册后获取
+访问 [ElevenLabs官网](https://elevenlabs.io/) 注册后自行创建获取
 
 ### Q2: 转换失败的可能原因
 - API Key 无效或配额不足
