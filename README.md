@@ -36,7 +36,7 @@
 
 ### 3. 界面操作说明
 
-![](https://github.com/fuxiaomoke/yuriyakuki/blob/main/assets/screenshot.png)
+![](https://github.com/fuxiaomoke/yuriyakuki/blob/test_before/assets/screenshot.png)
 
 1. **API设置**
    - 输入您的ElevenLabs API Key
